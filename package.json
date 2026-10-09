@@ -15,7 +15,7 @@
     "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "preview": "npm run build && wrangler pages dev ./out --port 8788",
     "deploy": "npm run build && wrangler pages deploy --commit-dirty=true",
-    "check": "tsc --noEmit && tsc -p functions/tsconfig.json && eslint && vitest run"
+    "check": "next typegen && tsc --noEmit && tsc -p functions/tsconfig.json && eslint && vitest run"
   },
   "dependencies": {
     "maplibre-gl": "^6.13.0",
