@@ -1,0 +1,10 @@
+# Cloudflare Pages response headers.
+/data/*
+  Cache-Control: public, max-age=300, must-revalidate
+
+/maplibre/*
+  Cache-Control: public, max-age=86400
+
+# Hashed filenames, safe to cache forever.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

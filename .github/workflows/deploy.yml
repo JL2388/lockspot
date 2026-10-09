@@ -1,0 +1,46 @@
+# Checks the project, then deploys it to Cloudflare Pages (https://lockspot.pages.dev).
+#
+# One-time setup (see README): create a Cloudflare API token with "Account > Cloudflare Pages > Edit",
+# then   gh secret set CLOUDFLARE_API_TOKEN   and   gh variable set CLOUDFLARE_ACCOUNT_ID --body <id>
+# Until the token exists the deploy step is skipped with a warning.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Type-check, lint and test
+        run: npm run check
+      - name: Check zone data
+        run: npm run verify:data
+      - name: Build
+        run: npm run build
+      - name: Deploy to Cloudflare Pages
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning title=Deploy skipped::CLOUDFLARE_API_TOKEN secret and CLOUDFLARE_ACCOUNT_ID variable are not set. See the README."
+            exit 0
+          fi
+          npx wrangler pages deploy --branch main --commit-hash "$GITHUB_SHA" --commit-message "Deploy $GITHUB_SHA"

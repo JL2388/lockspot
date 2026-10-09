@@ -33,6 +33,8 @@ export type PriceTable = Record<string, Partial<Record<string, number>>>;
 
 export interface PricesPayload {
   demo: boolean;
+  /** The upstream feed failed, so these are older than usual. */
+  stale?: boolean;
   updatedAt: string;
   prices: PriceTable;
 }

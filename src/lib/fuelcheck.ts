@@ -19,18 +19,29 @@ export interface FuelCheckPrice {
   price: number;
 }
 
+/** Where to keep the access token between calls (e.g. KV), so we don't re-authenticate every refresh. */
+export interface TokenStore {
+  get(): Promise<string | null>;
+  set(token: string, ttlSeconds: number): Promise<void>;
+}
+
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
-async function getToken(key: string, secret: string): Promise<string> {
+async function getToken(key: string, secret: string, store?: TokenStore): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value;
+  const stored = await store?.get();
+  if (stored) return stored;
+
   const res = await fetch(`${BASE}/oauth/client_credential/accesstoken?grant_type=client_credentials`, {
-    headers: { Authorization: `Basic ${Buffer.from(`${key}:${secret}`).toString("base64")}` },
+    headers: { Authorization: `Basic ${btoa(`${key}:${secret}`)}` },
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`FuelCheck auth failed: ${res.status}`);
   const body = (await res.json()) as { access_token: string; expires_in?: string | number };
   const ttl = Number(body.expires_in ?? 43_000);
   cachedToken = { value: body.access_token, expiresAt: Date.now() + ttl * 1000 };
+  // Tokens last about 12 hours; leave a margin so we never present an expired one.
+  await store?.set(body.access_token, Math.max(60, ttl - 300));
   return body.access_token;
 }
 
@@ -56,8 +67,9 @@ function requestTimestamp(): string {
 export async function fetchFuelCheck(
   key: string,
   secret: string,
+  tokenStore?: TokenStore,
 ): Promise<{ stations: FuelCheckStation[]; prices: FuelCheckPrice[] }> {
-  const token = await getToken(key, secret);
+  const token = await getToken(key, secret, tokenStore);
   const res = await fetch(`${BASE}/FuelPriceCheck/v1/fuel/prices`, {
     headers: {
       Authorization: `Bearer ${token}`,

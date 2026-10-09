@@ -1,29 +1,14 @@
-import { cacheLife } from "next/cache";
-import storesFile from "../../public/data/stores.json";
-import { FUELS } from "@/lib/fuel";
-import { fetchFuelCheck } from "@/lib/fuelcheck";
-import type { PriceTable, PricesPayload, StoresFile } from "@/lib/types";
-
-const stores = (storesFile as StoresFile).stores;
+import { FUELS, type FuelCode } from "./fuel";
+import type { FuelCheckPrice } from "./fuelcheck";
+import type { PriceTable, Store } from "./types";
 
 /**
- * One upstream call serves every visitor: the result is cached for 30 minutes, which keeps us well
- * inside FuelCheck's 2,500 calls/month free tier (about 1,500 calls a month).
+ * Turns a FuelCheck price list into our per-store table. Every FuelCheck-matched store is "known":
+ * a fuel missing from its entry means it doesn't sell it, while stores we have no feed for (e.g.
+ * interstate) are left out entirely so the app can flag them as unknown.
  */
-export async function getPrices(): Promise<PricesPayload> {
-  "use cache";
-  cacheLife({ stale: 300, revalidate: 1800, expire: 7200 });
-
-  const key = process.env.NSW_FUEL_API_KEY;
-  const secret = process.env.NSW_FUEL_API_SECRET;
-  if (key && secret) return { demo: false, updatedAt: new Date().toISOString(), prices: await livePrices(key, secret) };
-  return { demo: true, updatedAt: new Date().toISOString(), prices: demoPrices() };
-}
-
-async function livePrices(key: string, secret: string): Promise<PriceTable> {
-  const { prices } = await fetchFuelCheck(key, secret);
+export function liveTable(stores: Store[], prices: FuelCheckPrice[]): PriceTable {
   const byCode = new Map(stores.filter((s) => s.fc).map((s) => [s.fc!, s.id]));
-  // Every FuelCheck-matched store is "known": a fuel missing from its entry means it doesn't sell it.
   const table: PriceTable = Object.fromEntries(stores.filter((s) => s.fc).map((s) => [s.id, {}]));
   for (const p of prices) {
     const id = byCode.get(p.stationcode);
@@ -35,7 +20,7 @@ async function livePrices(key: string, secret: string): Promise<PriceTable> {
 // --- Demo data -----------------------------------------------------------------------------------
 // Deterministic fake prices so the app is usable before an API key is configured. Not real.
 
-const BASE: Record<(typeof FUELS)[number]["code"], number> = {
+const BASE: Record<FuelCode, number> = {
   U91: 189.9,
   E10: 185.9,
   P95: 204.9,
@@ -51,7 +36,7 @@ function unit(s: string): number {
   return ((h >>> 0) % 100000) / 100000;
 }
 
-function demoPrices(): PriceTable {
+export function demoTable(stores: Store[]): PriceTable {
   const table: PriceTable = {};
   for (const s of stores) {
     const regional = 7 * Math.sin(s.lat * 41 + s.lng * 17); // smooth-ish geographic variation

@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lockspot",
+  "pages_build_output_dir": "./out",
+  "compatibility_date": "2026-09-01",
+  "kv_namespaces": [{ "binding": "PRICES", "id": "45d00d0ca7034cb6973379ba1d9f00cc" }]
+}

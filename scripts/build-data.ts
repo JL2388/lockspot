@@ -151,6 +151,11 @@ async function mergeFuelCheck(osm: Store[]): Promise<Store[]> {
   const key = process.env.NSW_FUEL_API_KEY;
   const secret = process.env.NSW_FUEL_API_SECRET;
   if (!key || !secret) {
+    // CI passes --require-fuelcheck: an OpenStreetMap-only list has no FuelCheck ids, so committing
+    // it would break live price matching on the deployed site.
+    if (process.argv.includes("--require-fuelcheck")) {
+      throw new Error("NSW_FUEL_API_KEY and NSW_FUEL_API_SECRET are required (--require-fuelcheck)");
+    }
     console.log("No NSW_FUEL_API_KEY/SECRET: using OpenStreetMap stores only (prices will be demo data).");
     return osm;
   }
@@ -251,6 +256,12 @@ async function main() {
   if (!force && previous?.hash === hash && existsSync(CELLS_PATH)) {
     console.log(`Store list unchanged (${hash}); zones are up to date.`);
     return;
+  }
+  // A partial download (an Overpass hiccup, a FuelCheck outage) shouldn't silently shrink the map.
+  if (!force && previous && stores.length < previous.stores.length * 0.8) {
+    throw new Error(
+      `Store list shrank from ${previous.stores.length} to ${stores.length}; refusing to overwrite (use --force if that's right).`,
+    );
   }
 
   // Keep names we already resolved so a rebuild doesn't need to re-query places.

@@ -1,8 +1,8 @@
-# Rebuilds the precomputed lock zones when the 7-Eleven store list changes, and commits the result.
-# Zones depend only on store locations, so most weeks this finds nothing to do and commits nothing.
+# Rebuilds the precomputed lock zones when the 7-Eleven store list changes, commits the result, and
+# redeploys the site. Zones depend only on store locations, so most weeks this finds nothing to do.
 #
-# Needs repo secrets NSW_FUEL_API_KEY and NSW_FUEL_API_SECRET so NSW stores can be matched to
-# FuelCheck (without them the build falls back to OpenStreetMap-only store locations).
+# Needs repo secrets NSW_FUEL_API_KEY and NSW_FUEL_API_SECRET: without FuelCheck, NSW stores can't
+# be matched to price data, so the build refuses to run rather than commit a degraded store list.
 name: Refresh lock zones
 
 on:
@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # to start the deploy workflow (pushes made with GITHUB_TOKEN don't trigger it)
 
 jobs:
   refresh:
@@ -33,10 +34,12 @@ jobs:
         env:
           NSW_FUEL_API_KEY: ${{ secrets.NSW_FUEL_API_KEY }}
           NSW_FUEL_API_SECRET: ${{ secrets.NSW_FUEL_API_SECRET }}
-        run: npm run build:data -- ${{ inputs.force && '--force' || '' }}
+        run: npm run build:data -- --require-fuelcheck ${{ inputs.force && '--force' || '' }}
       - name: Check zones against brute force
         run: npm run verify:data
-      - name: Commit if changed
+      - name: Commit and redeploy if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet -- public/data; then
             echo "No changes."
@@ -46,4 +49,5 @@ jobs:
             git add public/data
             git commit -m "Refresh lock zones"
             git push
+            gh workflow run deploy.yml --ref "${{ github.ref_name }}"
           fi
