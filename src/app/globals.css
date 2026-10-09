@@ -1,26 +1,75 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-ink: #14202b;
+  --color-muted: #5a6a78;
+  --color-line: #e2e7eb;
+  --color-panel: #ffffff;
+  --color-wash: #f4f6f7;
+  --color-accent: #3b3fd1;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-panel);
+  color: var(--color-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Map popup for "what are my closest five here" */
+.maplibregl-popup-content {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-family: inherit;
+  color: var(--color-ink);
+}
+.spot-popup-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+.spot-popup ol {
+  list-style: decimal inside;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+.spot-popup li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+.spot-popup li .meta {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.spot-popup li.cheapest {
+  font-weight: 600;
+}
+.spot-popup-lock {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-line);
+  font-weight: 600;
+}
+.spot-popup button {
+  margin-top: 8px;
+  width: 100%;
+  border-radius: 6px;
+  background: var(--color-ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 10px;
+  cursor: pointer;
 }

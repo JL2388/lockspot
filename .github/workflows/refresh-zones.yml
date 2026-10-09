@@ -1,0 +1,49 @@
+# Rebuilds the precomputed lock zones when the 7-Eleven store list changes, and commits the result.
+# Zones depend only on store locations, so most weeks this finds nothing to do and commits nothing.
+#
+# Needs repo secrets NSW_FUEL_API_KEY and NSW_FUEL_API_SECRET so NSW stores can be matched to
+# FuelCheck (without them the build falls back to OpenStreetMap-only store locations).
+name: Refresh lock zones
+
+on:
+  schedule:
+    - cron: "0 18 * * 0" # Sundays 18:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild even if the store list is unchanged
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build stores and zones
+        env:
+          NSW_FUEL_API_KEY: ${{ secrets.NSW_FUEL_API_KEY }}
+          NSW_FUEL_API_SECRET: ${{ secrets.NSW_FUEL_API_SECRET }}
+        run: npm run build:data -- ${{ inputs.force && '--force' || '' }}
+      - name: Check zones against brute force
+        run: npm run verify:data
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- public/data; then
+            echo "No changes."
+          else
+            git config user.name "github-actions"
+            git config user.email "actions@github.com"
+            git add public/data
+            git commit -m "Refresh lock zones"
+            git push
+          fi
